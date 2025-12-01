@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CheckCircle, Clock, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle, Clock, Shield, ArrowRight, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 export default function HostApprovalWaiting() {
@@ -37,9 +37,36 @@ export default function HostApprovalWaiting() {
           </div>
 
           {/* Simple Message */}
-          <p className="text-gray-600 text-base sm:text-lg leading-relaxed mb-8 px-2">
+          <p className="text-gray-600 text-base sm:text-lg leading-relaxed mb-6 px-2">
             Your application is being reviewed. You'll receive an email notification once approved.
           </p>
+
+          {/* Status Badges */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            {/* Submitted - Completed */}
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mb-1">
+                <CheckCircle className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-xs text-gray-600 font-medium">Submitted</span>
+            </div>
+
+            {/* Reviewing - Current */}
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center mb-1 animate-pulse">
+                <Clock className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <span className="text-xs text-primary font-medium">Reviewing</span>
+            </div>
+
+            {/* Approved - Future */}
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center mb-1">
+                <Shield className="w-4 h-4 text-gray-500" />
+              </div>
+              <span className="text-xs text-gray-500">Approved</span>
+            </div>
+          </div>
 
           {/* Primary Action Button */}
           <div className="space-y-4">
