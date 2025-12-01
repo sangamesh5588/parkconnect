@@ -95,20 +95,33 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto">
-          <Card className="bg-gradient-primary p-8 sm:p-12 text-center border-0 shadow-strong">
-            <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground mb-4">
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        {/* Sophisticated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-600"></div>
+
+        {/* Elegant pattern overlay */}
+        <div className="absolute inset-0 opacity-8" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='40' cy='40' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+        }}></div>
+
+        {/* Floating decorative elements */}
+        <div className="absolute top-12 left-12 w-20 h-20 bg-white/8 rounded-full blur-lg animate-pulse"></div>
+        <div className="absolute bottom-12 right-12 w-28 h-28 bg-cyan-200/10 rounded-full blur-xl"></div>
+        <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-violet-200/10 rounded-full blur-md animate-pulse delay-1000"></div>
+
+        <div className="relative container mx-auto z-10">
+          <Card className="bg-white/95 backdrop-blur-sm p-8 sm:p-12 text-center border-0 shadow-2xl max-w-4xl mx-auto">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
               Ready to Get Started?
             </h2>
-            <p className="text-lg sm:text-xl text-primary-foreground/90 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-700 mb-8 max-w-2xl mx-auto leading-relaxed">
               Join thousands of users who have already discovered the easiest way to park or earn.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" asChild className="bg-background text-foreground hover:bg-background/90 shadow-soft">
+              <Button size="lg" variant="default" asChild className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 px-8">
                 <Link to="/renter">Find Parking Now</Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="border-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary">
+              <Button size="lg" variant="outline" asChild className="border-2 border-indigo-600 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300 px-8">
                 <Link to="/host">Start Hosting</Link>
               </Button>
             </div>

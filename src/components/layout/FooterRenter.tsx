@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 import { ParkingSquare } from "lucide-react";
 
-const Footer = () => {
+const FooterRenter = () => {
   const handleLinkClick = () => {
     // Ensure scroll to top when footer links are clicked
     setTimeout(() => {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }, 100);
   };
+
   return (
     <footer className="bg-muted border-t border-border mt-20">
       <div className="container-mobile py-12">
@@ -23,21 +24,20 @@ const Footer = () => {
           </div>
 
           <div>
-            <h3 className="font-semibold text-foreground mb-4 text-responsive-base">For Hosts</h3>
+            <h3 className="font-semibold text-foreground mb-4 text-responsive-base">For Renters</h3>
             <ul className="space-y-2 text-responsive-sm text-muted-foreground">
-              <li><Link to="/host" className="hover:text-primary transition-colors">Become a Host</Link></li>
-              <li><Link to="/host/dashboard" className="hover:text-primary transition-colors">Host Dashboard</Link></li>
-              <li><Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
-              <li><Link to="/coming-soon" className="hover:text-primary transition-colors">Host Resources</Link></li>
+              <li><Link to="/search" className="hover:text-primary transition-colors">Find Parking</Link></li>
+              <li><Link to="#how-it-works" className="hover:text-primary transition-colors">How It Works</Link></li>
+              <li><Link to="/coming-soon" className="hover:text-primary transition-colors">Download App</Link></li>
+              <li><Link to="/coming-soon" className="hover:text-primary transition-colors">My Bookings</Link></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-semibold text-foreground mb-4 text-responsive-base">For Renters</h3>
+            <h3 className="font-semibold text-foreground mb-4 text-responsive-base">For Hosts</h3>
             <ul className="space-y-2 text-responsive-sm text-muted-foreground">
-              <li><Link to="/search" className="hover:text-primary transition-colors">Find Parking</Link></li>
-              <li><Link to="/coming-soon" className="hover:text-primary transition-colors">How It Works</Link></li>
-              <li><Link to="/coming-soon" className="hover:text-primary transition-colors">Download App</Link></li>
+              <li><Link to="/host" className="hover:text-primary transition-colors">Become a Host</Link></li>
+              <li><Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
             </ul>
           </div>
 
@@ -60,4 +60,4 @@ const Footer = () => {
   );
 };
 
-export default Footer;
+export default FooterRenter;

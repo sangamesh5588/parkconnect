@@ -37,7 +37,7 @@ export function Header({ showSearchBar = false }: HeaderProps) {
           {/* Logo - Left - Mobile optimized */}
           <Link to="/" className="flex items-center gap-2 font-bold text-lg sm:text-xl text-foreground hover:text-primary transition-colors duration-200 min-h-[44px] px-2">
             <ParkingSquare className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-            <span className="hidden xs:block sm:block">ParkConnect</span>
+            <span className="block">ParkConnect</span>
           </Link>
 
           {/* Search Bar - Center (only on home page) - Mobile responsive */}

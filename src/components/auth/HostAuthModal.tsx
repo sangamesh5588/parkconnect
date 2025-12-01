@@ -112,20 +112,14 @@ export const HostAuthModal = ({ isOpen, onClose }: HostAuthModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md mx-4">
-        <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold text-gray-900 mb-2">
+      <DialogContent className="w-[95vw] max-w-md mx-auto h-auto max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="text-center pb-2">
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">
             {isSignupMode ? 'Join ParkConnect' : 'Welcome Back'}
           </DialogTitle>
-          <p className="text-center text-gray-600 text-sm">
-            {isSignupMode
-              ? 'Start earning from your parking spaces today'
-              : 'Sign in to manage your parking spaces'
-            }
-          </p>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <SocialLoginButtons
             onGoogleLogin={() => handleSocialLogin('google')}
             onFacebookLogin={() => handleSocialLogin('facebook')}
@@ -148,9 +142,21 @@ export const HostAuthModal = ({ isOpen, onClose }: HostAuthModalProps) => {
           {/* Terms */}
           <p className="text-xs text-gray-500 text-center leading-relaxed">
             By {isSignupMode ? 'signing up' : 'signing in'}, you agree to our{' '}
-            <a href="#" className="text-primary hover:underline">Terms of Service</a>
+            <Link
+              to="/terms-conditions"
+              onClick={onClose}
+              className="text-primary hover:underline"
+            >
+              Terms of Service
+            </Link>
             {' '}and{' '}
-            <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+            <Link
+              to="/privacy-policy"
+              onClick={onClose}
+              className="text-primary hover:underline"
+            >
+              Privacy Policy
+            </Link>
           </p>
 
           {/* Mode Switch */}

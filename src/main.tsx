@@ -5,6 +5,12 @@ import Home from "./app/page";
 import Login from "./app/(auth)/login/page";
 import OTPVerification from "./app/(auth)/otp/page";
 import HostLanding from "./pages/HostLanding";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import Pricing from "./pages/Pricing";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsConditions from "./pages/TermsConditions";
+import ScrollToTop from "./components/ui/scroll-to-top";
 
 import HostOnboarding from "./app/host/onboarding/page";
 import HostApprovalWaiting from "./app/host/onboarding/approval/page";
@@ -25,6 +31,7 @@ createRoot(document.getElementById("root")!).render(
     <AuthProvider>
       <SearchProvider>
         <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           {/* Public routes without layout */}
           <Route path="/login" element={<Login />} />
@@ -45,6 +52,11 @@ createRoot(document.getElementById("root")!).render(
             <Route index element={<Home />} />
             <Route path="host" element={<HostLanding />} />
             <Route path="renter/search" element={<Search />} />
+            <Route path="about" element={<About />} />
+            <Route path="contact" element={<Contact />} />
+            <Route path="pricing" element={<Pricing />} />
+            <Route path="privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="terms-conditions" element={<TermsConditions />} />
             {/* Add more routes here as we migrate pages */}
           </Route>
         </Routes>

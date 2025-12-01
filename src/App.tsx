@@ -8,6 +8,8 @@ import RenterLanding from "./pages/RenterLanding";
 import HostLanding from "./pages/HostLanding";
 import About from "./pages/About";
 import ComingSoon from "./pages/ComingSoon";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsConditions from "./pages/TermsConditions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +26,8 @@ const App = () => (
           <Route path="/host" element={<HostLanding />} />
           <Route path="/about" element={<About />} />
           <Route path="/coming-soon" element={<ComingSoon />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-conditions" element={<TermsConditions />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
