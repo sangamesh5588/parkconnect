@@ -6,6 +6,8 @@ import { AuthForm } from "./shared/AuthForm";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { checkUserTypeConflict, createOrUpdateUserProfile } from "@/utils/userTypeValidation";
+import { checkHostStatus } from "@/utils/hostStatusCheck";
 
 interface HostAuthModalProps {
   isOpen: boolean;
@@ -27,6 +29,11 @@ export const HostAuthModal = ({ isOpen, onClose }: HostAuthModalProps) => {
     try {
       setLoading(true);
       setError("");
+
+      // Store intention to go to host landing after OAuth
+      sessionStorage.setItem('auth_redirect', '/become-host');
+      sessionStorage.setItem('user_type', 'host');
+      sessionStorage.setItem('auth_flow', 'host'); // Track which flow initiated auth
 
       const { error } = await signInWithProvider(provider);
       if (error) {
@@ -61,6 +68,21 @@ export const HostAuthModal = ({ isOpen, onClose }: HostAuthModalProps) => {
       setLoading(true);
       setError("");
 
+      // Check for user type conflict before signup
+      if (isSignupMode) {
+        const conflictCheck = await checkUserTypeConflict(email, 'host');
+        if (conflictCheck.conflictMessage) {
+          setError(conflictCheck.conflictMessage);
+          toast({
+            title: "Account Already Exists",
+            description: conflictCheck.conflictMessage,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       let result;
       if (isSignupMode) {
         result = await signUp(email, password, {
@@ -68,6 +90,19 @@ export const HostAuthModal = ({ isOpen, onClose }: HostAuthModalProps) => {
           signup_source: 'modal'
         });
       } else {
+        // For login, check user type conflict
+        const conflictCheck = await checkUserTypeConflict(email, 'host');
+        if (conflictCheck.exists && conflictCheck.conflictMessage) {
+          setError(conflictCheck.conflictMessage);
+          toast({
+            title: "Wrong Account Type",
+            description: conflictCheck.conflictMessage,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
         result = await signIn(email, password);
       }
 
@@ -75,20 +110,27 @@ export const HostAuthModal = ({ isOpen, onClose }: HostAuthModalProps) => {
         throw result.error;
       }
 
-      if (isSignupMode) {
-        toast({
-          title: "Account Created!",
-          description: "Please check your email to confirm your account.",
-        });
-        // For signup, we might want to keep the modal open or show a confirmation message
-      } else {
-        toast({
-          title: "Welcome back!",
-          description: "You've been signed in successfully.",
-        });
-        onClose();
-        // Redirect to host dashboard or onboarding
-        navigate('/host/onboarding');
+      // Create user profile after successful auth
+      if (result.data?.user) {
+        await createOrUpdateUserProfile(result.data.user.id, email, 'host');
+
+        if (isSignupMode) {
+          toast({
+            title: "Account Created!",
+            description: "Please check your email to confirm your account.",
+          });
+          // For signup, we might want to keep the modal open or show a confirmation message
+        } else {
+          toast({
+            title: "Welcome back!",
+            description: "You've been signed in successfully.",
+          });
+          onClose();
+
+          // Use master host status check to determine redirect
+          const hostStatus = await checkHostStatus(result.data.user.id);
+          navigate(hostStatus.redirectTo);
+        }
       }
 
     } catch (err: any) {
@@ -187,22 +229,6 @@ export const HostAuthModal = ({ isOpen, onClose }: HostAuthModalProps) => {
               </p>
             </div>
           )}
-
-          {/* Demo Skip Button */}
-          <div className="pt-4 border-t border-gray-100">
-            <Button
-              onClick={() => {
-                // Mock demo user for testing
-                onClose();
-                navigate('/host/onboarding');
-              }}
-              variant="ghost"
-              className="w-full text-gray-500 hover:text-gray-700 hover:bg-gray-50 text-sm"
-              disabled={loading}
-            >
-              Skip for Demo →
-            </Button>
-          </div>
         </div>
       </DialogContent>
     </Dialog>

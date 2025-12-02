@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, Camera, FileText, CheckCircle, AlertCircle, X, ArrowRight, ArrowLeft, Loader2, Shield, CreditCard } from "lucide-react";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { useAuth } from "@/contexts/AuthContext";
+import { uploadKycDocuments, updateOnboarding } from "@/utils/onboardingService";
+import { useToast } from "@/hooks/use-toast";
 
 interface HostKycVerificationProps {
   onNext: () => void;
@@ -18,6 +21,8 @@ export default function HostKycVerification({
   onComplete
 }: HostKycVerificationProps) {
   const { kycDocuments, setKycDocuments } = useOnboardingStore();
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -86,6 +91,16 @@ export default function HostKycVerification({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to submit KYC documents",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     // Check if all required documents are uploaded (government_id and selfie are required)
@@ -98,22 +113,51 @@ export default function HostKycVerification({
     }
 
     try {
-      // TODO: Upload documents to server and create KYC verification request
-      const kycData = {
-        governmentId: kycDocuments.governmentId,
-        addressProof: kycDocuments.addressProof,
-        selfie: kycDocuments.selfie,
-        // In real implementation, this would be the uploaded file URLs
+      toast({
+        title: "Uploading Documents",
+        description: "Please wait while we upload your KYC documents...",
+      });
+
+      // Upload KYC documents to Supabase Storage
+      const uploadResults = await uploadKycDocuments(user.id, {
+        aadhaar: kycDocuments.governmentId || undefined,
+        pan: kycDocuments.addressProof || undefined,
+      });
+
+      if (uploadResults.error) {
+        throw new Error(uploadResults.error);
+      }
+
+      // Update onboarding record with document URLs
+      const updateData: any = {
+        kyc_status: 'pending',
       };
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (uploadResults.aadhaarUrl) {
+        updateData.aadhaar_document_url = uploadResults.aadhaarUrl;
+      }
 
-      console.log("KYC documents submitted:", kycData);
+      if (uploadResults.panUrl) {
+        updateData.pan_document_url = uploadResults.panUrl;
+      }
+
+      await updateOnboarding(user.id, updateData);
+
+      toast({
+        title: "Documents Uploaded!",
+        description: "Your KYC documents have been submitted successfully.",
+      });
+
+      // Complete onboarding
       onComplete();
-    } catch (error) {
+    } catch (error: any) {
       console.error("KYC submission failed:", error);
-      setErrors({ ...errors, general: "Failed to submit KYC documents. Please try again." });
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to submit KYC documents. Please try again.",
+        variant: "destructive",
+      });
+      setErrors({ ...errors, general: error.message || "Failed to submit KYC documents. Please try again." });
     } finally {
       setIsSubmitting(false);
     }

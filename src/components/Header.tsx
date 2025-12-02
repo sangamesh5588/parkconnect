@@ -82,7 +82,7 @@ export function Header({ showSearchBar = false }: HeaderProps) {
                 asChild
                 className="border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-200 font-medium rounded-full px-4 sm:px-5 py-2 min-h-[44px]"
               >
-                <Link to="/host">Become a Host</Link>
+                <Link to="/become-host">Become a Host</Link>
               </Button>
             </div>
 
@@ -115,7 +115,7 @@ export function Header({ showSearchBar = false }: HeaderProps) {
                       asChild
                       className="w-full py-6 font-medium border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground rounded-lg mb-3"
                     >
-                      <Link to="/host">Become a Host</Link>
+                      <Link to="/become-host">Become a Host</Link>
                     </Button>
 
                     {/* Help Center */}
@@ -148,7 +148,9 @@ export function Header({ showSearchBar = false }: HeaderProps) {
                         asChild
                         className="w-full border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground font-medium rounded-full py-6 min-h-[48px]"
                       >
-                        <Link to="/host" onClick={() => setMobileMenuOpen(false)}>Become a Host</Link>
+                        <Link to="/become-host" onClick={() => setMobileMenuOpen(false)}>
+                          Become a Host
+                        </Link>
                       </Button>
                     </div>
 

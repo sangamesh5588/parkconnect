@@ -33,6 +33,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Custom signOut function that redirects to /become-host
+  const handleSignOut = async () => {
+    const result = await auth.signOut();
+    // Redirect handled by SIGNED_OUT event listener below
+    return result;
+  }
+
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
@@ -62,8 +69,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // User signed in successfully
           console.log('User signed in:', session?.user?.email)
         } else if (event === 'SIGNED_OUT') {
-          // User signed out
+          // User signed out - redirect to /become-host
           console.log('User signed out')
+          // Use setTimeout to ensure state updates complete before navigation
+          setTimeout(() => {
+            window.location.href = '/become-host';
+          }, 100);
         } else if (event === 'TOKEN_REFRESHED') {
           // Token was refreshed
           console.log('Token refreshed')
@@ -83,7 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signUp: auth.signUp,
     signIn: auth.signIn,
     signInWithProvider: auth.signInWithProvider,
-    signOut: auth.signOut,
+    signOut: handleSignOut, // Use custom signOut with redirect
     resetPassword: auth.resetPassword,
     updatePassword: auth.updatePassword,
   }

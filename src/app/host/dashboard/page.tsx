@@ -2,14 +2,18 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
-import { CheckCircle, Plus, MapPin, DollarSign, Users, Settings, ArrowRight, Clock, Calendar, ChevronDown, ChevronUp, Car, Wrench, FileText, BarChart3, X, Eye, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle, Plus, Settings, Clock, Calendar, Car, FileText, BarChart3, X, Eye, TrendingUp, Users, DollarSign, MapPin } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import DailySlotManager from "@/components/DailySlotManager";
+import { Progress } from "@/components/ui/progress";
 import { useMockParkingListings, mockHostId } from "@/hooks/use-mock-parking-listings";
 import { useMockBookings } from "@/hooks/use-mock-bookings";
 import { useParkingSessions } from "@/hooks/use-parking-sessions";
 import ParkingTimer from "@/components/ParkingTimer";
+
+// Loading and Error Components
+import { HostErrorBoundary } from "@/components/ui/HostErrorBoundary";
+import { DashboardSkeleton, LoadingOverlay, usePullToRefresh } from "@/components/ui/HostLoadingStates";
 
 // Parking Listing Components
 import { useParkingListingStore } from "@/hooks/use-parking-listing-store";
@@ -22,19 +26,25 @@ import {
 
 export default function HostDashboard() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [showWelcome, setShowWelcome] = useState(!location.state?.listingCreated && !location.state?.approvalSkipped);
   const [showApprovalSuccess, setShowApprovalSuccess] = useState(false);
-  const [showParkingModal, setShowParkingModal] = useState(false);
   const [showSlotModal, setShowSlotModal] = useState(false);
   const [showDailySlots, setShowDailySlots] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
   const { getTotalStats, getListingsByHost } = useMockParkingListings();
   const { getTotalStats: getBookingStats } = useMockBookings();
-  const { getActiveSessions, getTodaysStats: getSessionStats } = useParkingSessions();
+  const { getActiveSessions } = useParkingSessions();
+
+  // Pull to refresh functionality
+  const { pullDistance, isRefreshing, canRefresh, touchHandlers } = usePullToRefresh(
+    async () => {
+      // Simulate data refresh
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Dashboard data refreshed');
+    },
+    80 // threshold in pixels
+  );
 
   // Get real stats from stored listings
-  const listingStats = getTotalStats(mockHostId);
   const bookingStats = getBookingStats(mockHostId);
   const listings = getListingsByHost(mockHostId);
 
@@ -44,7 +54,6 @@ export default function HostDashboard() {
 
   // Get active parking sessions
   const activeSessions = getActiveSessions();
-  const sessionStats = getSessionStats();
 
   // Only allow creating new listing if host doesn't already have one
   const canCreateListing = listings.length === 0;
@@ -61,76 +70,144 @@ export default function HostDashboard() {
   }, [location.state]);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur-md border-b border-gray-100">
-        <div className="container-mobile py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">P</span>
+    <div
+      className="pb-20"
+      {...touchHandlers}
+      style={{
+        transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : undefined,
+        transition: pullDistance === 0 ? 'transform 0.3s ease-out' : undefined,
+      }}
+    >
+      {/* Pull to Refresh Indicator */}
+      {pullDistance > 0 && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
+          <div className="flex items-center justify-center py-4">
+            <div className={`flex items-center space-x-2 transition-all duration-200 ${
+              canRefresh ? 'text-blue-600' : 'text-gray-400'
+            }`}>
+              <div className={`transform transition-transform duration-200 ${
+                canRefresh ? 'rotate-180' : ''
+              }`}>
+                ↓
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">ParkConnect</h1>
-                <p className="text-sm text-gray-600">Host Dashboard</p>
-              </div>
+              <span className="text-sm font-medium">
+                {canRefresh ? 'Release to refresh' : 'Pull to refresh'}
+              </span>
             </div>
-
-            <Button variant="outline" size="sm">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
           </div>
         </div>
-      </header>
+      )}
 
-      {/* Main Content */}
-      <main className="container-mobile py-6">
-        {/* Welcome Message */}
+      {/* Loading Overlay */}
+      <LoadingOverlay isVisible={isRefreshing} message="Refreshing data..." />
+
+      {/* Mobile-First Dashboard Content */}
+      <div className="space-y-6">
+        {/* Welcome Message - Only show briefly */}
         {showWelcome && (
-          <Card className="p-6 mb-6 bg-secondary border-border">
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <CheckCircle className="w-8 h-8 text-primary" />
-              </div>
+          <Card className="mx-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <div className="flex items-start space-x-3">
+              <CheckCircle className="w-6 h-6 text-blue-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
-                  Welcome to ParkConnect! 🎉
-                </h2>
-                <p className="text-gray-700 mb-4">
-                  Your host application has been approved in demo mode. You're now ready to start listing your parking spaces and earning money!
-                </p>
-                <Button
-                  onClick={() => setShowWelcome(false)}
-                  variant="outline"
-                  size="sm"
-                >
-                  Dismiss
+                <h3 className="font-semibold text-gray-900 mb-1">Welcome to ParkConnect! 🎉</h3>
+                <p className="text-sm text-gray-600 mb-3">Your host account is ready. Start by listing your parking space.</p>
+                <Button size="sm" onClick={() => setShowWelcome(false)} variant="outline" className="text-xs">
+                  Got it
                 </Button>
               </div>
             </div>
           </Card>
         )}
 
-        {/* Pending Approval Notification */}
-        {pendingListings.length > 0 && (
-          <Card className="p-4 mb-6 bg-secondary border-border">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-primary" />
+        {/* Today's Overview - Key Stats */}
+        <div className="mx-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <BarChart3 className="w-5 h-5 mr-2 text-gray-600" />
+            Today's Overview
+          </h2>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* Active Sessions */}
+            <Card className="p-4 text-center bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <div className="text-2xl font-bold text-blue-900 mb-1">{activeSessions.length}</div>
+              <div className="text-xs text-blue-700 font-medium">Active Sessions</div>
+            </Card>
+
+            {/* Today's Bookings */}
+            <Card className="p-4 text-center bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <div className="text-2xl font-bold text-green-900 mb-1">{bookingStats.totalBookings}</div>
+              <div className="text-xs text-green-700 font-medium">Today's Bookings</div>
+            </Card>
+          </div>
+        </div>
+
+        {/* Quick Actions - Touch Friendly */}
+        <div className="mx-4">
+          <h3 className="text-base font-semibold text-gray-900 mb-3">Quick Actions</h3>
+
+          <div className="grid grid-cols-3 gap-4">
+            {/* List Parking Space */}
+            {canCreateListing && (
+              <Link to="/host/parking/list">
+                <Card className="p-4 cursor-pointer hover:shadow-md transition-all duration-200 active:scale-95 bg-white border-2 hover:border-blue-300">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <Plus className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="text-xs font-medium text-gray-900">List Space</div>
+                  </div>
+                </Card>
+              </Link>
+            )}
+
+            {/* Manage Parking */}
+            {liveListings.length > 0 && (
+              <Card
+                onClick={() => setShowSlotModal(true)}
+                className="p-4 cursor-pointer hover:shadow-md transition-all duration-200 active:scale-95 bg-white border-2 hover:border-gray-300"
+              >
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <Settings className="w-6 h-6 text-gray-600" />
+                  </div>
+                  <div className="text-xs font-medium text-gray-900">Manage</div>
                 </div>
-              </div>
+              </Card>
+            )}
+
+            {/* View Bookings */}
+            <Link to="/host/bookings">
+              <Card className="p-4 cursor-pointer hover:shadow-md transition-all duration-200 active:scale-95 bg-white border-2 hover:border-orange-300">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2 relative">
+                    <FileText className="w-6 h-6 text-orange-600" />
+                    {bookingStats.totalBookings > 0 && (
+                      <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-xs bg-orange-500">
+                        {bookingStats.totalBookings > 9 ? '9+' : bookingStats.totalBookings}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-xs font-medium text-gray-900">Bookings</div>
+                </div>
+              </Card>
+            </Link>
+          </div>
+        </div>
+
+        {/* Status Messages */}
+        {pendingListings.length > 0 && (
+          <Card className="mx-4 p-4 bg-yellow-50 border-yellow-200">
+            <div className="flex items-start space-x-3">
+              <Clock className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-primary mb-1">
-                  {pendingListings.length} Parking Space{pendingListings.length > 1 ? 's' : ''} Under Review
-                </h3>
-                <p className="text-sm text-primary/80 mb-3">
-                  Your listing{pendingListings.length > 1 ? 's are' : ' is'} being reviewed by our admin team.
-                  You'll receive a notification once {pendingListings.length > 1 ? 'they are' : 'it is'} approved.
+                <h4 className="text-sm font-medium text-yellow-900 mb-1">
+                  {pendingListings.length} Listing{pendingListings.length > 1 ? 's' : ''} Under Review
+                </h4>
+                <p className="text-xs text-yellow-700 mb-2">
+                  We'll notify you once {pendingListings.length > 1 ? 'they are' : 'it is'} approved.
                 </p>
                 <Link to="/host/parking/approval">
-                  <Button variant="outline" size="sm" className="border-border text-primary hover:bg-secondary">
+                  <Button size="sm" variant="outline" className="text-xs h-7 border-yellow-300 text-yellow-700 hover:bg-yellow-100">
                     Check Status
                   </Button>
                 </Link>
@@ -139,501 +216,146 @@ export default function HostDashboard() {
           </Card>
         )}
 
-        {/* Approval Success Notification */}
         {showApprovalSuccess && (
-          <Card className="p-4 mb-6 bg-secondary border-border">
+          <Card className="mx-4 p-4 bg-green-50 border-green-200">
             <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <CheckCircle className="w-8 h-8 text-primary" />
-              </div>
+              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-primary mb-1">
-                  🎉 Parking Space Approved!
-                </h3>
-                <p className="text-sm text-primary/80">
-                  Your parking space is now live and visible to renters. You can start managing availability below.
-                </p>
+                <h4 className="text-sm font-medium text-green-900 mb-1">🎉 Listing Approved!</h4>
+                <p className="text-xs text-green-700">Your parking space is now live and accepting bookings.</p>
               </div>
             </div>
           </Card>
         )}
 
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-            <BarChart3 className="w-6 h-6 mr-3 text-gray-700" />
-            Quick Actions
-          </h2>
-
-          <div className="space-y-4">
-            {/* Action Cards Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Manage Parking Card */}
-              {liveListings.length > 0 && (
-                <Card
-                  onClick={() => setShowSlotModal(true)}
-                  className="relative overflow-hidden cursor-pointer h-32 border-0 shadow-2xl bg-gradient-to-br from-black via-gray-900 to-black"
-                >
-                  {/* Content */}
-                  <div className="relative p-6 h-full flex flex-col justify-center items-center text-center z-10">
-                    <h3 className="text-xl font-bold text-white">Manage Parking</h3>
-                    <p className="text-sm text-gray-300">Update availability & pricing</p>
-                    {bookingStats.totalBookings > 0 && (
-                      <div className="mt-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                        {bookingStats.totalBookings} Active
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              )}
-
-              {/* View Bookings Card */}
-              <Link to="/host/bookings">
-                <Card className="relative overflow-hidden cursor-pointer h-32 border-0 shadow-2xl bg-gradient-to-br from-black via-gray-900 to-black">
-                  {/* Content */}
-                  <div className="relative p-6 h-full flex flex-col justify-center items-center text-center z-10">
-                    <h3 className="text-xl font-bold text-white">View Bookings</h3>
-                    <p className="text-sm text-gray-300">Manage reservations & earnings</p>
-                    {bookingStats.totalBookings > 0 && (
-                      <div className="mt-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                        {bookingStats.totalBookings} Bookings
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              </Link>
-
-              {/* Daily Active Slots Toggle Card */}
-              {liveListings.length > 0 && (
-                <Card
-                  onClick={() => setShowDailySlots(!showDailySlots)}
-                  className="relative overflow-hidden cursor-pointer h-32 border-0 shadow-2xl bg-gradient-to-br from-black via-gray-900 to-black"
-                >
-                  {/* Content */}
-                  <div className="relative p-4 h-full flex flex-col items-center justify-center text-center z-10">
-                    <h3 className="text-lg font-bold mb-2 text-white">
-                      Daily Slots
-                    </h3>
-                    <div className="text-sm font-medium text-gray-300">
-                      {liveListings.reduce((total, listing) => total + listing.activeCarSlots + listing.activeBikeSlots, 0)} Active
-                    </div>
-                    <div className="mt-3 text-gray-400">
-                      ▼
-                    </div>
-                  </div>
-                </Card>
-              )}
-            </div>
-
-            {/* Daily Active Slots Section - Enhanced Design */}
-            {showDailySlots && liveListings.length > 0 && (
-              <Card className="bg-gradient-to-br from-slate-50 via-white to-slate-50 border border-slate-200/60 shadow-xl backdrop-blur-sm">
-                <div className="p-8">
-                  <div className="space-y-8">
-                    {/* Enhanced Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="space-y-2">
-                        <h3 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                          Daily Active Slots
-                        </h3>
-                        <p className="text-slate-600 text-sm">Monitor and manage your parking space availability</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl font-semibold text-sm shadow-lg">
-                          {liveListings.reduce((total, listing) => total + listing.activeCarSlots + listing.activeBikeSlots, 0)} /
-                          {liveListings.reduce((total, listing) => total + listing.totalCarSlots + listing.totalBikeSlots, 0)} Active
-                        </div>
-                        <div className={`w-3 h-3 rounded-full ${
-                          liveListings.reduce((total, listing) => total + listing.activeCarSlots + listing.activeBikeSlots, 0) > 0
-                            ? 'bg-green-500 animate-pulse'
-                            : 'bg-slate-400'
-                        }`}></div>
-                      </div>
-                    </div>
-
-                    {/* Enhanced Parking Spaces Grid */}
-              <div className="grid grid-cols-3 gap-4">
-                      {liveListings.map((listing, index) => {
-                        const utilizationPercent = Math.round(
-                          ((listing.activeCarSlots + listing.activeBikeSlots) /
-                           (listing.totalCarSlots + listing.totalBikeSlots)) * 100
-                        );
-
-                        const getStatusColor = (percent: number) => {
-                          if (percent >= 80) return { bg: 'from-emerald-500 to-green-600', text: 'text-emerald-700', light: 'bg-emerald-50', border: 'border-emerald-200' };
-                          if (percent >= 50) return { bg: 'from-amber-500 to-orange-600', text: 'text-amber-700', light: 'bg-amber-50', border: 'border-amber-200' };
-                          return { bg: 'from-red-500 to-rose-600', text: 'text-red-700', light: 'bg-red-50', border: 'border-red-200' };
-                        };
-
-                        const statusStyle = getStatusColor(utilizationPercent);
-
-                        return (
-                          <div key={listing.id} className="group relative bg-white rounded-2xl border border-slate-200/80 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
-                            {/* Status Banner */}
-                            <div className={`bg-gradient-to-r ${statusStyle.bg} text-white px-4 py-2 text-xs font-semibold uppercase tracking-wide`}>
-                              {utilizationPercent >= 80 ? 'High Occupancy' : utilizationPercent >= 50 ? 'Moderate' : 'Low Occupancy'}
-                            </div>
-
-                            <div className="p-6 space-y-5">
-                              {/* Header */}
-                              <div className="space-y-3">
-                                <div className="flex items-start justify-between">
-                                  <div className="min-w-0 flex-1">
-                                    <h4 className="text-lg font-bold text-slate-900 truncate">{listing.name}</h4>
-                                    <p className="text-sm text-slate-600 flex items-center gap-1">
-                                      <span className="w-1 h-1 bg-slate-400 rounded-full"></span>
-                                      {listing.address}
-                                    </p>
-                                  </div>
-                                  <div className={`text-right ${statusStyle.light} ${statusStyle.border} border px-3 py-2 rounded-xl`}>
-                                    <div className={`text-2xl font-bold ${statusStyle.text}`}>
-                                      {utilizationPercent}%
-                                    </div>
-                                    <div className={`text-xs ${statusStyle.text} font-medium`}>Utilized</div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Enhanced Utilization Bar */}
-                              <div className="space-y-3">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-slate-700 font-medium">Capacity Usage</span>
-                                  <span className="text-slate-500">{listing.activeCarSlots + listing.activeBikeSlots}/{listing.totalCarSlots + listing.totalBikeSlots} slots</span>
-                                </div>
-                                <div className="relative">
-                                  <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                                    <div
-                                      className={`h-full bg-gradient-to-r ${statusStyle.bg} transition-all duration-700 ease-out rounded-full relative`}
-                                      style={{ width: `${utilizationPercent}%` }}
-                                    >
-                                      <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Enhanced Slot Status */}
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
-                                  <div className="text-xs text-blue-700 font-semibold uppercase tracking-wide mb-1">Cars</div>
-                                  <div className="text-lg font-bold text-blue-900">
-                                    {listing.activeCarSlots}/{listing.totalCarSlots}
-                                  </div>
-                                  <div className="w-full bg-blue-200 rounded-full h-1 mt-2">
-                                    <div
-                                      className="bg-blue-600 h-1 rounded-full transition-all duration-500"
-                                      style={{ width: `${listing.totalCarSlots > 0 ? (listing.activeCarSlots / listing.totalCarSlots) * 100 : 0}%` }}
-                                    ></div>
-                                  </div>
-                                </div>
-                                <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-                                  <div className="text-xs text-green-700 font-semibold uppercase tracking-wide mb-1">Bikes</div>
-                                  <div className="text-lg font-bold text-green-900">
-                                    {listing.activeBikeSlots}/{listing.totalBikeSlots}
-                                  </div>
-                                  <div className="w-full bg-green-200 rounded-full h-1 mt-2">
-                                    <div
-                                      className="bg-green-600 h-1 rounded-full transition-all duration-500"
-                                      style={{ width: `${listing.totalBikeSlots > 0 ? (listing.activeBikeSlots / listing.totalBikeSlots) * 100 : 0}%` }}
-                                    ></div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Enhanced Manage Button */}
-                              <Button
-                                size="sm"
-                                className="w-full bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                                onClick={() => setShowSlotModal(true)}
-                              >
-                                Manage Slots
-                              </Button>
-                            </div>
-
-                            {/* Subtle Background Pattern */}
-                            <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
-                              <div className="w-full h-full bg-gradient-to-br from-slate-900 to-transparent rounded-full transform translate-x-16 -translate-y-16"></div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Enhanced Summary */}
-                    <div className="bg-gradient-to-r from-slate-100 to-slate-50 border border-slate-200 rounded-2xl p-6">
-                      <div className="flex items-center justify-center gap-3">
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-sm">💡</span>
-                        </div>
-                        <div className="text-slate-700 font-medium">
-                          Click "Manage Slots" on any space to update daily availability and pricing
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
-          </div>
-        </div>
-
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 gap-4 mb-8">
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-primary mb-1">{activeSessions.length}</div>
-            <div className="text-sm text-gray-600">Active Sessions</div>
-          </Card>
-        </div>
-
-
-        {/* Minimal Active Parking Sessions */}
+        {/* Active Sessions - If any */}
         {activeSessions.length > 0 && (
-          <Card className="bg-gradient-to-br from-slate-50 via-white to-slate-50 border border-slate-200/60 shadow-xl backdrop-blur-sm mb-8">
-            <div className="p-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent flex items-center">
-                    <Clock className="w-6 h-6 mr-3 text-blue-600" />
-                    Active Parking Sessions
-                  </h3>
-                  <p className="text-slate-600 text-sm">Monitor real-time parking activities</p>
-                </div>
-                {activeSessions.length > 10 && (
-                  <Link to="/host/sessions">
-                    <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2">
-                      <Eye className="w-4 h-4" />
-                      View All ({activeSessions.length})
-                    </Button>
-                  </Link>
-                )}
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                {activeSessions.slice(0, 10).map((session) => {
-                  // Calculate overtime pricing
-                  const now = new Date().getTime();
-                  const bookedEndTime = session.bookedEndTime.getTime();
-                  const overtimeMs = Math.max(0, now - bookedEndTime);
-                  const overtimeMinutes = Math.floor(overtimeMs / (1000 * 60));
-
-                  // Pricing logic: 0-30 min = half hourly rate, then continues
-                  const halfHourlyRate = session.hourlyRate / 2;
-                  const overtimeCharges = overtimeMinutes > 0 ? halfHourlyRate : 0;
-
-                  return (
-                    <div key={session.id} className="group relative bg-white rounded-2xl border border-slate-200/80 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
-                      {/* Status Banner - Overtime Indicator */}
-                      <div className={`bg-gradient-to-r ${
-                        overtimeMinutes > 0
-                          ? 'from-orange-500 to-red-600'
-                          : session.gateStatus === 'open'
-                            ? 'from-emerald-500 to-green-600'
-                            : 'from-blue-500 to-indigo-600'
-                      } text-white px-4 py-2 text-xs font-semibold uppercase tracking-wide`}>
-                        {overtimeMinutes > 0 ? `${overtimeMinutes}min Overtime` : session.gateStatus === 'open' ? 'Active' : 'Parked'}
-                      </div>
-
-                  <div className="p-6 space-y-5">
-                    {/* Car Image - Visual representation of parked car */}
-                    <div className="flex justify-center">
-                      <div className="relative">
-                        <div className="w-20 h-16 bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg border-2 border-blue-300 flex items-center justify-center shadow-md">
-                          <div className="text-2xl">🚗</div>
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                          {session.spaceName.slice(0, 3).toUpperCase()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Countdown Timer */}
-                    <div className="flex justify-center">
-                      <ParkingTimer
-                        startTime={session.actualStartTime!}
-                        endTime={session.bookedEndTime}
-                        bookedDuration={session.bookedDuration}
-                        hourlyRate={session.hourlyRate}
-                        vehicleNumber={session.vehicleNumber}
-                        customerName={session.customerName}
-                        className="scale-110"
-                      />
-                    </div>
-
-                    {/* Price Information */}
-                    {overtimeCharges > 0 && (
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-                        <div className="text-sm text-red-700 font-medium">Additional Charges</div>
-                        <div className="text-xl font-bold text-red-900">${overtimeCharges.toFixed(2)}</div>
-                        <div className="text-xs text-red-600">{overtimeMinutes}min @ ${(halfHourlyRate).toFixed(2)}/min</div>
-                      </div>
-                    )}
-
-                    {/* Call Renter Button */}
-                    <Button
-                      className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                    >
-                      📞 Call Renter
-                    </Button>
-                  </div>
-
-                      {/* Subtle Background Pattern */}
-                      <div className="absolute top-0 right-0 w-24 h-24 opacity-5">
-                        <div className="w-full h-full bg-gradient-to-br from-slate-900 to-transparent rounded-full transform translate-x-12 -translate-y-12"></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {activeSessions.length > 10 && (
-                <div className="mt-8 text-center">
-                  <div className="inline-flex items-center gap-3 bg-slate-100 border border-slate-200 rounded-2xl px-6 py-4">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <Eye className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-slate-700 font-medium">Showing 10 of {activeSessions.length} active sessions</p>
-                      <Link to="/host/sessions">
-                        <Button className="mt-2 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white">
-                          View All Sessions
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Enhanced Footer */}
-              <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm">💡</span>
-                  </div>
-                  <div className="text-blue-900 font-medium">
-                    Contact renters directly for payment collection when overtime occurs
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-
-
-        {/* Getting Started Guide - Only show when user has no listings */}
-        {listings.length === 0 && (
-          <div className="mb-8">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-              <CheckCircle className="w-5 h-5 mr-2 text-primary" />
-              Getting Started as a Host
+          <div className="mx-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+              <Clock className="w-4 h-4 mr-2 text-blue-600" />
+              Active Sessions ({activeSessions.length})
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-              {/* Step 1 */}
-              <Card className="p-4 bg-secondary border-border hover:shadow-md transition-shadow">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary-foreground">1</span>
-                  </div>
-                  <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
-                    <Plus className="w-4 h-4 text-primary" />
-                  </div>
-                </div>
-                <h4 className="font-semibold text-gray-900 text-sm mb-2">List Your Space</h4>
-                <p className="text-xs text-gray-600 leading-tight">Add location, photos, pricing & availability</p>
-              </Card>
+            <div className="space-y-3">
+              {activeSessions.slice(0, 3).map((session) => {
+                const now = new Date().getTime();
+                const bookedEndTime = session.bookedEndTime.getTime();
+                const overtimeMs = Math.max(0, now - bookedEndTime);
+                const overtimeMinutes = Math.floor(overtimeMs / (1000 * 60));
 
-              {/* Step 2 */}
-              <Card className="p-4 bg-secondary border-border hover:shadow-md transition-shadow">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary-foreground">2</span>
-                  </div>
-                  <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
-                    <DollarSign className="w-4 h-4 text-primary" />
-                  </div>
-                </div>
-                <h4 className="font-semibold text-gray-900 text-sm mb-2">Set Pricing</h4>
-                <p className="text-xs text-gray-600 leading-tight">Choose competitive rates & offers</p>
-              </Card>
+                return (
+                  <Card key={session.id} className="p-4 bg-white border">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="text-xl">🚗</div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{session.customerName}</div>
+                          <div className="text-xs text-gray-500">{session.vehicleNumber}</div>
+                        </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        overtimeMinutes > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {overtimeMinutes > 0 ? `${overtimeMinutes}m overtime` : 'Active'}
+                      </div>
+                    </div>
 
-              {/* Step 3 */}
-              <Card className="p-4 bg-secondary border-border hover:shadow-md transition-shadow">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary-foreground">3</span>
-                  </div>
-                  <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
-                    <BarChart3 className="w-4 h-4 text-primary" />
-                  </div>
-                </div>
-                <h4 className="font-semibold text-gray-900 text-sm mb-2">Start Earning</h4>
-                <p className="text-xs text-gray-600 leading-tight">Receive bookings & earn money</p>
-              </Card>
-            </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-gray-900 mb-1">
+                        {Math.floor((bookedEndTime - now) / (1000 * 60))} min left
+                      </div>
+                      <div className="text-xs text-gray-600">Parking session ends at {session.bookedEndTime.toLocaleTimeString()}</div>
+                    </div>
+                  </Card>
+                );
+              })}
 
-            {/* CTA Button */}
-            <div className="text-center">
-              <Link to="/host/parking/list">
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-200">
-                  <Plus className="w-4 h-4 mr-2" />
-                  List Your First Parking Space
-                </Button>
-              </Link>
+              {activeSessions.length > 3 && (
+                <Link to="/host/sessions">
+                  <Button variant="outline" className="w-full" size="sm">
+                    View All {activeSessions.length} Sessions
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         )}
 
-        {/* One Listing Per Host Notice - Show when user already has listings */}
-        {listings.length > 0 && (
-          <div className="mb-8">
-            <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    One Listing Per Host Policy
-                  </h3>
-                  <p className="text-gray-700 mb-4">
-                    You currently have {listings.length} parking listing{listings.length > 1 ? 's' : ''} active.
-                    To maintain quality and fair distribution, each host is limited to one parking listing at a time.
-                  </p>
-                  <div className="flex items-center text-sm text-blue-700 bg-blue-100 px-3 py-2 rounded-lg">
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    <span className="font-medium">
-                      {liveListings.length > 0 ? 'Your listing is live and accepting bookings!' : 'Your listing is under review.'}
-                    </span>
-                  </div>
-                </div>
+        {/* Getting Started - For new hosts */}
+        {listings.length === 0 && !showWelcome && (
+          <div className="mx-4">
+            <Card className="p-6 text-center bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Car className="w-8 h-8 text-blue-600" />
               </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Start Earning?</h3>
+              <p className="text-sm text-gray-600 mb-4">List your parking space and start accepting bookings in minutes.</p>
+              <Link to="/host/parking/list">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                  List Your Parking Space
+                </Button>
+              </Link>
             </Card>
           </div>
         )}
 
-        {/* Footer Actions */}
-        <div className="mt-8 flex justify-center">
-          <Link to="/">
-            <Button variant="outline">
-              Back to Home
-            </Button>
-          </Link>
-        </div>
-      </main>
+        {/* Parking Space Status - If live listings exist */}
+        {liveListings.length > 0 && (
+          <div className="mx-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+              <TrendingUp className="w-4 h-4 mr-2 text-green-600" />
+              Your Parking Space
+            </h3>
 
-      {/* Parking Listing Modal */}
-      <ParkingListingModal
-        isOpen={showParkingModal}
-        onClose={() => setShowParkingModal(false)}
-        onComplete={() => {
-          setShowParkingModal(false);
-          // Refresh the listings data
-          window.location.reload();
-        }}
-      />
+            {liveListings.map((listing) => {
+              const utilizationPercent = Math.round(
+                ((listing.activeCarSlots + listing.activeBikeSlots) /
+                 (listing.totalCarSlots + listing.totalBikeSlots)) * 100
+              );
+
+              return (
+                <Card key={listing.id} className="p-4 bg-white border">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{listing.name}</h4>
+                      <p className="text-sm text-gray-600">{listing.address}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-gray-900">{utilizationPercent}%</div>
+                      <div className="text-xs text-gray-600">Utilized</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Utilization Bar */}
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${utilizationPercent}%` }}
+                      />
+                    </div>
+
+                    {/* Slot Counts */}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">
+                        {listing.activeCarSlots + listing.activeBikeSlots} / {listing.totalCarSlots + listing.totalBikeSlots} slots active
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowSlotModal(true)}
+                        className="text-xs h-7"
+                      >
+                        Manage
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Slot Management Modal */}
       <SlotManagementModal

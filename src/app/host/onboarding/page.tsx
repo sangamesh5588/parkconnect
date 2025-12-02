@@ -4,6 +4,10 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Check, MapPin, CreditCard, Shield, User, Home, ChevronRight, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useOnboardingStore } from "@/hooks/use-onboarding-store";
+import { useAuth } from "@/contexts/AuthContext";
+import { getOrCreateOnboarding, updateOnboarding, completeOnboarding } from "@/utils/onboardingService";
+import { checkHostStatus, canAccessOnboarding } from "@/utils/hostStatusCheck";
+import { useToast } from "@/hooks/use-toast";
 import HostPersonalDetails from "@/components/onboarding/HostPersonalDetails";
 import HostAddressSetup from "@/components/onboarding/HostAddressSetup";
 import HostPaymentSetup from "@/components/onboarding/HostPaymentSetup";
@@ -18,6 +22,7 @@ const steps = [
 
 export default function HostOnboarding() {
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const {
     currentStep,
@@ -37,9 +42,58 @@ export default function HostOnboarding() {
     setKycDocuments
   } = useOnboardingStore();
 
+  const { user } = useAuth();
+  const { toast } = useToast();
   const progress = (currentStep / steps.length) * 100;
   const CurrentStepComponent = steps[currentStep - 1].component;
   const navigate = useNavigate();
+
+  // Load existing onboarding data on mount
+  useEffect(() => {
+    const loadOnboardingData = async () => {
+      if (!user) {
+        navigate('/');
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        // Check if user can access onboarding (not submitted or approved)
+        const canAccess = await canAccessOnboarding(user.id);
+
+        if (!canAccess) {
+          // User has already submitted or been approved - redirect to correct page
+          const hostStatus = await checkHostStatus(user.id);
+          navigate(hostStatus.redirectTo);
+          return;
+        }
+
+        // Load onboarding data
+        const { data, error } = await getOrCreateOnboarding(user.id);
+
+        if (error) {
+          console.error('Error loading onboarding data:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load onboarding data",
+            variant: "destructive",
+          });
+        }
+
+        // Set current step from database if exists
+        if (data?.current_step) {
+          setCurrentStep(data.current_step);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadOnboardingData();
+  }, [user, navigate]);
 
   useEffect(() => {
     // Smooth transition effect
@@ -48,12 +102,46 @@ export default function HostOnboarding() {
     return () => clearTimeout(timer);
   }, [currentStep]);
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    if (!user) return;
+
     // Validate current step before proceeding
     if (isStepValid(currentStep)) {
       // Mark current step as completed
       const stepKey = getStepKey(currentStep);
       setStepCompleted(stepKey, true);
+
+      // Save progress to Supabase based on current step
+      try {
+        const updateData: any = {
+          current_step: currentStep + 1
+        };
+
+        // Add step-specific data
+        if (currentStep === 1) {
+          updateData.full_name = personalDetails.fullName;
+          updateData.email = personalDetails.email;
+          updateData.phone_number = personalDetails.age; // Using age field as phone for now
+        } else if (currentStep === 2) {
+          updateData.address_line1 = addressDetails.street;
+          updateData.city = addressDetails.city;
+          updateData.state = addressDetails.state;
+          updateData.latitude = addressDetails.location?.lat;
+          updateData.longitude = addressDetails.location?.lng;
+        } else if (currentStep === 3) {
+          if (paymentSetup.paymentMethod === 'upi') {
+            updateData.upi_id = paymentSetup.upiId;
+          } else {
+            updateData.bank_account_number = paymentSetup.accountNumber;
+            updateData.bank_ifsc_code = paymentSetup.ifscCode;
+          }
+        }
+
+        await updateOnboarding(user.id, updateData);
+      } catch (err) {
+        console.error('Error saving progress:', err);
+        // Continue anyway - data is saved locally
+      }
 
       // Move to next step
       if (currentStep < steps.length) {
@@ -78,12 +166,46 @@ export default function HostOnboarding() {
     }
   };
 
-  const handleComplete = () => {
-    console.log("Host onboarding completed");
-    // Clear data after successful completion
-    reset();
-    // Navigate to approval waiting page
-    navigate('/host/onboarding/approval');
+  const handleComplete = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to complete onboarding",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Mark onboarding as completed in Supabase
+      const { error } = await completeOnboarding(user.id);
+
+      if (error) {
+        throw new Error(error);
+      }
+
+      toast({
+        title: "Onboarding Complete!",
+        description: "Your application is being reviewed. You'll be notified within 24-48 hours.",
+      });
+
+      // Clear local data after successful completion
+      reset();
+
+      // Navigate to approval waiting page
+      navigate('/host/onboarding/approval');
+    } catch (err: any) {
+      console.error('Error completing onboarding:', err);
+      toast({
+        title: "Submission Failed",
+        description: err.message || "Failed to complete onboarding. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Transform store data to match component props

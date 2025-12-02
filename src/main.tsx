@@ -4,6 +4,7 @@ import RootLayout from "./app/layout";
 import Home from "./app/page";
 import Login from "./app/(auth)/login/page";
 import OTPVerification from "./app/(auth)/otp/page";
+import AuthCallback from "./app/(auth)/callback/page";
 import HostLanding from "./pages/HostLanding";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
@@ -24,6 +25,11 @@ import Search from "./app/renter/search/page";
 import ErrorBoundary from "./components/ui/error-boundary";
 import { SearchProvider } from "./contexts/SearchContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { HostAuthGuard } from "./components/auth/HostAuthGuard";
+import { HostRouteGuard } from "./components/auth/HostRouteGuard";
+import { SimpleAuthGuard } from "./components/auth/SimpleAuthGuard";
+import { HostLayout } from "./components/layout/HostLayout";
+import { HostErrorBoundary } from "./components/ui/HostErrorBoundary";
 import "./styles/globals.css";
 
 createRoot(document.getElementById("root")!).render(
@@ -36,21 +42,33 @@ createRoot(document.getElementById("root")!).render(
           {/* Public routes without layout */}
           <Route path="/login" element={<Login />} />
           <Route path="/otp" element={<OTPVerification />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Host onboarding routes */}
           <Route path="/host/onboarding" element={<HostOnboarding />} />
           <Route path="/host/onboarding/approval" element={<HostApprovalWaiting />} />
 
-          {/* Host dashboard routes */}
-          <Route path="/host/dashboard" element={<HostDashboard />} />
-          <Route path="/host/parking/list" element={<ParkingListFlow />} />
-          <Route path="/host/parking/approval" element={<ParkingApprovalWaiting />} />
-          <Route path="/host/bookings" element={<HostBookingsPage />} />
+          {/* Protected Host routes with automatic redirects */}
+          <Route path="/host" element={
+            <HostRouteGuard>
+              <HostAuthGuard>
+                <HostErrorBoundary>
+                  <HostLayout />
+                </HostErrorBoundary>
+              </HostAuthGuard>
+            </HostRouteGuard>
+          }>
+            <Route path="dashboard" element={<HostDashboard />} />
+            <Route path="parking/list" element={<ParkingListFlow />} />
+            <Route path="parking/approval" element={<ParkingApprovalWaiting />} />
+            <Route path="bookings" element={<HostBookingsPage />} />
+            {/* Add more host routes here as we build them */}
+          </Route>
 
           {/* Routes with layout */}
           <Route path="/" element={<RootLayout />}>
             <Route index element={<Home />} />
-            <Route path="host" element={<HostLanding />} />
+            <Route path="become-host" element={<HostLanding />} />
             <Route path="renter/search" element={<Search />} />
             <Route path="about" element={<About />} />
             <Route path="contact" element={<Contact />} />

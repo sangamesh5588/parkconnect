@@ -6,6 +6,7 @@ import { AuthForm } from "./shared/AuthForm";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { checkUserTypeConflict, createOrUpdateUserProfile } from "@/utils/userTypeValidation";
 
 interface RenterAuthModalProps {
   isOpen: boolean;
@@ -27,6 +28,11 @@ export const RenterAuthModal = ({ isOpen, onClose }: RenterAuthModalProps) => {
     try {
       setLoading(true);
       setError("");
+
+      // Store intention to go to renter search after OAuth
+      sessionStorage.setItem('auth_redirect', '/renter/search');
+      sessionStorage.setItem('user_type', 'renter');
+      sessionStorage.setItem('auth_flow', 'renter'); // Track which flow initiated auth
 
       const { error } = await signInWithProvider(provider);
       if (error) {
@@ -61,6 +67,21 @@ export const RenterAuthModal = ({ isOpen, onClose }: RenterAuthModalProps) => {
       setLoading(true);
       setError("");
 
+      // Check for user type conflict before signup
+      if (isSignupMode) {
+        const conflictCheck = await checkUserTypeConflict(email, 'renter');
+        if (conflictCheck.conflictMessage) {
+          setError(conflictCheck.conflictMessage);
+          toast({
+            title: "Account Already Exists",
+            description: conflictCheck.conflictMessage,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       let result;
       if (isSignupMode) {
         result = await signUp(email, password, {
@@ -68,11 +89,29 @@ export const RenterAuthModal = ({ isOpen, onClose }: RenterAuthModalProps) => {
           signup_source: 'modal'
         });
       } else {
+        // For login, check user type conflict
+        const conflictCheck = await checkUserTypeConflict(email, 'renter');
+        if (conflictCheck.exists && conflictCheck.conflictMessage) {
+          setError(conflictCheck.conflictMessage);
+          toast({
+            title: "Wrong Account Type",
+            description: conflictCheck.conflictMessage,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
         result = await signIn(email, password);
       }
 
       if (result.error) {
         throw result.error;
+      }
+
+      // Create user profile after successful auth
+      if (result.data?.user) {
+        await createOrUpdateUserProfile(result.data.user.id, email, 'renter');
       }
 
       if (isSignupMode) {
@@ -87,7 +126,7 @@ export const RenterAuthModal = ({ isOpen, onClose }: RenterAuthModalProps) => {
           description: "You've been signed in successfully.",
         });
         onClose();
-        // Redirect to renter dashboard or search
+        // Redirect to renter search page
         navigate('/renter/search');
       }
 
